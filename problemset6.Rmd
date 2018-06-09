@@ -1,0 +1,142 @@
+---
+title: 'Problem Set 6: Instrumental variables'
+author: "Hannah Busshoff, Peter Heinemann"
+date: "7 Juni 2018"
+output: html_document
+---
+## Part 1: Background
+#1
+Having more kids can effect labour supply of the parents, but a causal link from labour supply to the number of children is also theoretically very plausible. Beta1 captures the correlation between the two variables and can not distinguishe the causal effect of one on the other.
+
+#2
+Randomly assign numbers of children to couples at all levels of hours worked. Obviously it is not feasible to make couples have a certain number of kids against their will.
+
+#3
+samesex: dummy variable, indicating whether the first two children are of the same sex or not. It is hard to theoretically justify that the parents' labour supply is correlated to the samesex variable, thus the exclusion restriction hold. However, as the study points out, parents of same-sex siblings are significantly more likely to go on and have further children, thus samesex effects the variable "More than two kids" and the relevance restriction holds.
+
+multi2nd: dummy variable, indicating whether the second birth of a couple are multiple births or not. Obviously this variable effects the variable "More than two kids", thus relevance holds. Also one cannot theoretically justify parents' labour supply to be related to whether they get twins or a single birth except for the indirect effect through the "More than two kids" variable. Hence, the exclusion restriction also holds.
+
+#4
+Never-taker: people, whose potential outcome of the treatment variable is always zero, regardless of the instrumental variable value. Example: people who, no matter the sex combination of their first two kids, do not go on to have a third child.
+
+Defiers: Example: Parents with first two children of equal sex that do not go on to have a third child or parents with first two children of different sex that go on to have a third.
+
+Always-takers: people, whose potential outcome of the treatment variable is always one, regardless of the instrumental variable value. Example: people who, no matter the sex combination of their first two kids, go on to have a third child.
+
+Compliers: Parents with first two children of equal sex that go on to have a third child or parents with first two children of different sex that do not go on to have a third.
+
+#5
+Dummy variable indicating whether the mother worked a job during the previous year.
+Potential outcomes: more than two kids and worked; more than two kids and didn't work; at most two kids and worked; at most two kids and didn't work.
+
+#6
+Iv estimates for effect of having more than two children on labour supply is significant for women but smaller than OLS estimate, while it finds no effect of having more than two children on men's labour supply.
+The comparison of the sibling sex approach and the twins approach shows that the impact of having more than two children disappears when the third child reaches age 13.
+
+#7
+External validity: Study is concerned with step from two children to three. Conclusions maybe cannot be extended to other questions as for example about how the first child affects labour supply.
+IV always estimates the effect only for a subpopulation, namely for compliers.
+
+Internal validity: Relevance of samesex may not be guaranteed. 
+
+## Part 2: Empirics
+```{r warning=FALSE, message=FALSE}
+rm(list = ls())
+getwd()
+library(skimr)
+library(lmtest)
+library(sandwich)
+library(car)
+library(ivpack)
+```
+
+#1
+```{r}
+df = read.csv("ps6_laborSupply.csv")
+skim(df)
+```
+Values look reasonable. Some very extreme values (hoursworked 99, kidcount 12) but very few observations. No missings
+
+#2
+```{r}
+lm(worked ~ morethantwo, data = df) %>% summary()
+```
+Of the mothers who have at most two kids, 57% worked a job during the previous year. Of the mothers who have more than two kids, 11.5 percentage points less (roughly 45.5%) worked a job during the previous year
+
+#3
+```{r}
+fs = lm(morethantwo ~ samesex, data = df)
+coeftest(fs, vcov = sandwich)
+```
+The estimated coefficient on samesex is positive and highly significant. Among the subpopulation of mothers whose first two children are of the same sex, the share of mothers with more than two kids is 6.8 percentage points higher than in the subpopulation of mothers whose first two children are of different sexes. (41% versus 35%).
+
+#4
+```{r}
+rf = lm(worked ~ samesex, data = df)
+coeftest(rf, vcov = sandwich)
+```
+The coefficient on samesex is negative and significant, hence mothers whose first two children were of different sexes were less likely to have worked a job during the previous year.
+
+#5
+```{r}
+wald = rf$coefficients[2]/fs$coefficients[2]
+wald
+```
+Wald estimate gives ratio of covariance between worked and samesex and covariance between more than two kids and samesex. 
+
+#6
+```{r}
+df$fittedfs = fitted(fs)
+ss = lm(worked ~ fittedfs, data = df)
+coeftest(ss, vcov = sandwich)
+#or via ivreg:
+iv1 = ivreg(worked ~ morethantwo | samesex, data = df)
+robust.se(iv1)
+```
+Having more than two kids lowers the probabilty of working a job by 13.7 percentage points. Identical finding to Wald-estimate
+
+#7
+```{r}
+fs2 = lm(morethantwo ~ multi2nd, data = df)
+df$fittedfs2 = fitted(fs2)
+ss2 = lm(worked ~ fittedfs2, data = df)
+coeftest(ss2, vcov = sandwich)
+#or via ivreg
+iv2 = ivreg(worked ~ morethantwo | multi2nd, data = df)
+robust.se(iv2)
+```
+Having more than two kids lowers the probability of working a job by 8.4 percentage points. Effect significant and same sign but smaller in absolute values than the one from using samesex as single instrument.
+
+#8
+```{r}
+fsjoint = lm(morethantwo ~ samesex + multi2nd, data = df)
+summary(fsjoint)
+linearHypothesis(fsjoint, c("samesex = 0", "multi2nd = 0"), white.adjust = TRUE)
+```
+F-statistic for joint significance huge, so instruments are not jointly weak.
+
+#9
+```{r}
+ivjoint = ivreg(worked ~ morethantwo | samesex + multi2nd, data = df)
+robust.se(ivjoint)
+```
+Causal effect between the two single instrument estimates
+
+#10
+```{r}
+df$resid = lm(worked ~ morethantwo, data = df)$residuals
+test = lm(resid ~ samesex + multi2nd, data = df)
+summary(test)
+Ftest = linearHypothesis(test, c("samesex = 0", "multi2nd = 0"), white.adjust = TRUE)
+m = 2
+J = m*Ftest[2,3]
+if (J > qchisq(0.95, 2)) {
+  cat("Exclusion restriction is rejected")
+}  else {cat("Exclusion restriction holds")
+}
+```
+
+#11
+```{r}
+
+```
