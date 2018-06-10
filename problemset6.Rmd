@@ -6,15 +6,23 @@ output: html_document
 ---
 ## Part 1: Background
 #1
-Having more kids can effect labour supply of the parents, but a causal link from labour supply to the number of children is also theoretically very plausible. Beta1 captures the correlation between the two variables and can not distinguishe the causal effect of one on the other.
+Having more kids can effect labour supply of the parents, but a causal link from labour supply to the number of children is also theoretically very plausible. Potential selection problem: Women who specialize in housework for various reasons other than having more children (unobserved wage rate, preferences, value system etc.), get more children. 
+ 
+
 
 #2
-Randomly assign numbers of children to couples at all levels of hours worked. Obviously it is not feasible to make couples have a certain number of kids against their will.
+Randomly assign numbers of children to couples at all levels of hours worked. Obviously it is not feasible to make couples have a certain number of kids against their will. Further issue could be that couples  behave differently in the experimental setup. This would flaw the results. 
 
 #3
-samesex: dummy variable, indicating whether the first two children are of the same sex or not. It is hard to theoretically justify that the parents' labour supply is correlated to the samesex variable, thus the exclusion restriction hold. However, as the study points out, parents of same-sex siblings are significantly more likely to go on and have further children, thus samesex effects the variable "More than two kids" and the relevance restriction holds.
+
+The authors claim that both instruments induce an exogenous variation in family size. 
+
+samesex: dummy variable, indicating whether the first two children are of the same sex or not. As gender is randomly assigned, parents' labour supply should be uncorrelated with the samesex variable, thus the exclusion restriction holds. However, as parents have a well-reported preference for a mixed sibling-sex composition, parents of same-sex siblings are significantly more likely to go on and have further children, thus samesex effects the variable "More than two kids" and the relevance restriction holds.
 
 multi2nd: dummy variable, indicating whether the second birth of a couple are multiple births or not. Obviously this variable effects the variable "More than two kids", thus relevance holds. Also one cannot theoretically justify parents' labour supply to be related to whether they get twins or a single birth except for the indirect effect through the "More than two kids" variable. Hence, the exclusion restriction also holds.
+
+Debatable: In the twin case, we may argue that parents with in-vitro fertilization have a higher chance of getting twins or triplets, but parents with in-vitro fertilization may differ in other important aspects such as preference to work, unobserved opportunity costs of housework, etc. However, as the data are rather old - in-vitro fertilizations may not have been that common and the exclusion restrictio still holds.
+
 
 #4
 Never-taker: people, whose potential outcome of the treatment variable is always zero, regardless of the instrumental variable value. Example: people who, no matter the sex combination of their first two kids, do not go on to have a third child.
@@ -30,14 +38,28 @@ Dummy variable indicating whether the mother worked a job during the previous ye
 Potential outcomes: more than two kids and worked; more than two kids and didn't work; at most two kids and worked; at most two kids and didn't work.
 
 #6
-Iv estimates for effect of having more than two children on labour supply is significant for women but smaller than OLS estimate, while it finds no effect of having more than two children on men's labour supply.
-The comparison of the sibling sex approach and the twins approach shows that the impact of having more than two children disappears when the third child reaches age 13.
+(1)	OLS estimates qualitatively correct, however, somewhat exaggerate the negative of children on the female labor supply.
+(2)	The effect is heterogenous. Causal effect on college-educated women and women with husbands with high wages is absent.
+(3)	Effect on male labor supply is negligible. Men do not change their work habits. If they contribute more to housework, they decrease their leisure time.
+(4)	No evidence that income losses due to reduction in labor supply of women are offset by increases in male labor earnings.
+(5) The comparison of the sibling sex approach and the twins approach shows that the impact of having more than two children disappears when the third child reaches age 13.
 
 #7
-External validity: Study is concerned with step from two children to three. Conclusions maybe cannot be extended to other questions as for example about how the first child affects labour supply.
-IV always estimates the effect only for a subpopulation, namely for compliers.
+External Validity: 
 
-Internal validity: Relevance of samesex may not be guaranteed. 
+•	Restricted to US. No general insights. Different value systems, institutional settings may give different results.
+•	Time period is 1980s and 1990s. By now, causal effects may look quite different.
+•	Causal effect on compliers. Is this an interesting subpopulation? Maybe not.
+
+Internal validity:  
+
+•	Instruments are not well-suited, exlusion restriction violated etc.
+
+(Relevance of samesex may not be guaranteed.
+
+Food for thought: Relevance can be tested? Exclusion restriction)  
+
+
 
 ## Part 2: Empirics
 ```{r warning=FALSE, message=FALSE}
@@ -55,7 +77,8 @@ library(ivpack)
 df = read.csv("ps6_laborSupply.csv")
 skim(df)
 ```
-Values look reasonable. Some very extreme values (hoursworked 99, kidcount 12) but very few observations. No missings
+Values look reasonable. Some very extreme values (hoursworked 99, kidcount 12, weekly labor income) but very few observations. No missings
+Low share of blacks and hispanics? 
 
 #2
 ```{r}
@@ -120,7 +143,7 @@ F-statistic for joint significance huge, so instruments are not jointly weak.
 ivjoint = ivreg(worked ~ morethantwo | samesex + multi2nd, data = df)
 robust.se(ivjoint)
 ```
-Causal effect between the two single instrument estimates
+ With multiple instruments the newly estimated covariate is an average of covariate-specific LATEs. As an average it must be a convex combination of the covariates.
 
 #10
 ```{r}
@@ -130,13 +153,16 @@ summary(test)
 Ftest = linearHypothesis(test, c("samesex = 0", "multi2nd = 0"), white.adjust = TRUE)
 m = 2
 J = m*Ftest[2,3]
-if (J > qchisq(0.95, 2)) {
+if (J > qchisq(0.95, 1)) {
   cat("Exclusion restriction is rejected")
 }  else {cat("Exclusion restriction holds")
 }
 ```
-
+Degrees of freedom is m - k = 2 (restrictions 2) - 1 (number of endogenous regressors) !?!? 
 #11
 ```{r}
 
 ```
+#12
+
+We should not include income as labor supply will also determine income (again endogeneity). Best approach find some exogenous variation in labor income: e.g. collectively bargained wages etc. 
